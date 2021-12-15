@@ -1,0 +1,25 @@
+{
+  "name": "federated-worker",
+  "version": "1.0.0",
+  "author": "Chanceler Shaffer",
+  "description": "Class to abstract instantiation of web worker that can load federated modules or any remote script",
+  "license": "MIT",
+  "devDependencies": {
+    "ts-loader": "^9.2.6",
+    "typescript": "^4.5.3",
+    "webpack": "^5.65.0",
+    "webpack-cli": "^4.9.1",
+    "webpack-dev-server": "^4.6.0",
+    "worker-loader": "^3.0.8"
+  },
+  "browser": "./dist/federated-worker.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "webpack-dev-server --config webpack.dev.js",
+    "build": "yarn build:prod",
+    "build:dev": "webpack --config webpack.dev.js",
+    "build:prod": "webpack --config webpack.prod.js",
+    "pack": "yarn build:prod; npm pack",
+    "publish": "yarn build:prod; npm publish"
+  }
+}

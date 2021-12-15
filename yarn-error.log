@@ -1,0 +1,36 @@
+Arguments: 
+  /Users/cshaffer2/.nvm/versions/node/v14.18.0/bin/node /Users/cshaffer2/.nvm/versions/node/v14.18.0/bin/yarn init
+
+PATH: 
+  /Users/cshaffer2/.nvm/versions/node/v14.18.0/bin:/Users/cshaffer2/.yarn/bin:/Users/cshaffer2/.config/yarn/global/node_modules/.bin:/Users/cshaffer2/.bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/cshaffer2/.nvm/versions/node/v14.18.0/bin:/Users/cshaffer2/.yarn/bin:/Users/cshaffer2/.config/yarn/global/node_modules/.bin:/Users/cshaffer2/.bin
+
+Yarn version: 
+  1.22.15
+
+Node version: 
+  14.18.0
+
+Platform: 
+  darwin x64
+
+Trace: 
+  Error: canceled
+      at Interface.<anonymous> (/Users/cshaffer2/.nvm/versions/node/v14.18.0/lib/node_modules/yarn/lib/cli.js:137145:13)
+      at Interface.emit (events.js:400:28)
+      at Interface._ttyWrite (readline.js:1001:16)
+      at ReadStream.onkeypress (readline.js:265:10)
+      at ReadStream.emit (events.js:400:28)
+      at emitKeys (internal/readline/utils.js:358:14)
+      at emitKeys.next (<anonymous>)
+      at ReadStream.onData (readline.js:1270:36)
+      at ReadStream.emit (events.js:400:28)
+      at addChunk (internal/streams/readable.js:293:12)
+
+npm manifest: 
+  No manifest
+
+yarn manifest: 
+  No manifest
+
+Lockfile: 
+  No lockfile
