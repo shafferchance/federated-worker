@@ -1,6 +1,6 @@
 {
   "name": "federated-worker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Chanceler Shaffer",
   "description": "Class to abstract instantiation of web worker that can load federated modules or any remote script",
   "license": "MIT",
