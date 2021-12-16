@@ -20,6 +20,6 @@
     "build:dev": "webpack --config webpack.dev.js",
     "build:prod": "webpack --config webpack.prod.js",
     "pack": "yarn build:prod; npm pack",
-    "publish": "yarn build:prod; npm publish"
+    "publish": "yarn build:prod"
   }
 }
