@@ -24,11 +24,13 @@ async function exampleWorker () {
     url: ["URL to Package/Module"]
   })
 
+  // A and T default to unknown
   // To execute method from imported module
   // -> Promise<T | ModuleReturn | void>
-  const result = await worker.runMethod<string>({
+  const result = await worker.runMethod<A, T>({
     method: ["Function name"]
-    module: ["Module Name"]
+    module?: ["Module Name"] // If this is excluded then method executed off of worker global scope
+    args?: A                 // Set the args for type checking :)
   }, async?: boolean)
 
   return result
