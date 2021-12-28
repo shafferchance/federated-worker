@@ -7,6 +7,7 @@ import {
   JobTypes,
   ModuleReturn,
   WorkerEventHandlers,
+  WorkerCallState,
 } from "./types";
 
 import FederatedModuleWorker from "./remoteFederated.worker.ts";
@@ -163,6 +164,17 @@ export class FederatedWorker {
     });
   }
 
+  private routeMethod<T>(type: JobTypes, state: T, wait?: boolean) {
+    if (wait) {
+      return this.runWorkerJob(type, state);
+    } else {
+      this.worker.postMessage({
+        type,
+        state,
+      });
+    }
+  }
+
   addModule(importModuleState: ImportModuleState): Promise<ModuleReturn> {
     if (
       !importModuleState.module ||
@@ -182,16 +194,16 @@ export class FederatedWorker {
   }
 
   runMethod<T>(
-    method: AsyncCallState,
+    methodState: AsyncCallState<T> & WorkerCallState<T>,
     wait?: boolean
   ): Promise<T | ModuleReturn> | void {
-    if (wait) {
-      return this.runWorkerJob("ASYNC_METHOD_CALL", method);
-    } else {
-      this.worker.postMessage({
-        type: "ASYNC_METHOD_CALL",
-        state: method,
-      } as Job<AsyncCallState>);
-    }
+    const { async, module } = methodState;
+    const isAsync = async || wait;
+
+    return this.routeMethod(
+      module ? "ASYNC_METHOD_CALL" : "WORKER_METHOD_CALL",
+      methodState,
+      isAsync
+    );
   }
 }
