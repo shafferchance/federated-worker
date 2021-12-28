@@ -193,12 +193,17 @@ export class FederatedWorker {
     );
   }
 
-  runMethod<T>(
-    methodState: AsyncCallState<T> & WorkerCallState<T>,
+  runMethod<A = unknown, T = unknown>(
+    methodState: Omit<AsyncCallState<A>, "module"> &
+      WorkerCallState<A> & { module?: string },
     wait?: boolean
   ): Promise<T | ModuleReturn> | void {
     const { async, module } = methodState;
     const isAsync = async || wait;
+
+    if (this.debug) {
+      console.log(methodState);
+    }
 
     return this.routeMethod(
       module ? "ASYNC_METHOD_CALL" : "WORKER_METHOD_CALL",

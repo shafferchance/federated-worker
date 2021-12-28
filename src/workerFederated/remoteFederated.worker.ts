@@ -199,6 +199,7 @@ const handlers: WorkerJobHandlers = {
     // @ts-ignore: Will find better typing in the future
     const rawResult = self[method](...args);
 
+    // Best practice per spec is to check for thenable rather than instanceof promise
     if (rawResult?.then) {
       rawResult.then((res: unknown) => {
         const asyncResult: Job<WorkerReturnState> = {
@@ -220,6 +221,7 @@ const handlers: WorkerJobHandlers = {
         },
       };
 
+      // Perhaps should make this optional to save on serialization overhead?
       postMessage(syncResult);
     }
   },
