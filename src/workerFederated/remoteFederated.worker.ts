@@ -226,7 +226,8 @@ const handlers: WorkerJobHandlers = {
 };
 
 onmessage = (workerEvent: WorkerJobMessage) => {
-  const { type } = workerEvent.data;
+  const { data } = workerEvent;
+  const { type } = data;
 
   const handler = handlers[type as WorkerJobs];
 
@@ -237,7 +238,7 @@ onmessage = (workerEvent: WorkerJobMessage) => {
   try {
     // TODO: Job State mgmt
     // @ts-ignore: Why have all the extra code of the switch if we can do the same with an ignore 🤷‍♂️
-    handler(workerEvent.data);
+    handler(data);
   } catch (e) {
     // Extra layer of protection
     console.error(e);
