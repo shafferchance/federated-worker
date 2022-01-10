@@ -11,6 +11,7 @@ import {
 } from "./types";
 
 import FederatedModuleWorker from "./remoteFederated.worker.ts";
+import { FederatedWorkerOptions } from ".";
 
 const urlRegex = /blob:(.+)/;
 
@@ -26,18 +27,33 @@ function v4UUID() {
 }
 
 export class FederatedWorker {
-  public worker: Worker;
+  public debug: boolean;
+  public useClient: boolean;
+  public worker?: Worker;
+  private clientMethods?: WorkerEventHandlers;
 
-  constructor(public debug = false) {
-    this.worker = new FederatedModuleWorker();
-    this.initializeFederatedWorker(this.worker);
+  constructor(options?: FederatedWorkerOptions) {
+    // Initializing variables
+    this.debug = options?.debug || false;
+    this.useClient = options?.useClient || false;
+    this.clientMethods = options?.clientMethods || undefined;
+
+    // Really dummy method for debugging
+    if (this.useClient) {
+      this.initializeClientFederatedWorker();
+    } else {
+      this.worker = new FederatedModuleWorker();
+      this.initializeFederatedWorker(this.clientMethods);
+    }
   }
 
-  private initializeFederatedWorker(
-    worker: Worker,
-    eventHandlers?: WorkerEventHandlers
-  ): Worker {
-    worker.addEventListener(
+  private initializeFederatedWorker(eventHandlers?: WorkerEventHandlers) {
+    if (!this.worker) {
+      throw new Error(
+        "[WORKER]: Trying to initialize Worker that does not exist"
+      );
+    }
+    this.worker.addEventListener(
       "message",
       (event: MessageEvent<Job<ImportScriptState>>) => {
         // Primaly used to import scripts without cross origin concerns
@@ -47,7 +63,7 @@ export class FederatedWorker {
             console.debug(event);
           }
 
-          if (!worker) {
+          if (!this.worker) {
             throw new Error("How did this message get here?");
           }
 
@@ -64,7 +80,7 @@ export class FederatedWorker {
           if (host) {
             const newHost = new URL(correctURL);
             newHost.host = host; // There is a check above
-            worker.postMessage({
+            this.worker.postMessage({
               type: "IMPORT_SCRIPT_END",
               done: true,
               state: {
@@ -75,7 +91,7 @@ export class FederatedWorker {
               parentJob,
             } as Job<ImportScriptState>);
           } else {
-            worker.postMessage({
+            this.worker.postMessage({
               type: "IMPORT_SCRIPT_END",
               done: true,
               id,
@@ -87,7 +103,7 @@ export class FederatedWorker {
       }
     );
 
-    worker.addEventListener(
+    this.worker.addEventListener(
       "message",
       (event: MessageEvent<Job<ImportModuleState>>) => {
         if (
@@ -101,7 +117,7 @@ export class FederatedWorker {
       }
     );
 
-    worker.addEventListener(
+    this.worker.addEventListener(
       "message",
       (event: MessageEvent<Job<AsyncReturnState>>) => {
         if (
@@ -115,11 +131,26 @@ export class FederatedWorker {
         }
       }
     );
-
-    return worker;
   }
 
-  private runWorkerJob<T>(
+  private initializeClientFederatedWorker() {
+    if (this.debug) {
+      console.debug("Initializing client...");
+    }
+  }
+
+  // This is for if the useClient flag is switched back
+  private checkWorker() {
+    if (!this.worker) {
+      if (this.debug) {
+        console.debug("[WORKER]: Worker never spun up or closed by browser!");
+      }
+      this.worker = new FederatedModuleWorker();
+      this.initializeFederatedWorker(this.clientMethods);
+    }
+  }
+
+  private runClientJob<T>(
     jobType: JobTypes,
     state: T,
     cb?: (state: T) => ModuleReturn
@@ -136,10 +167,51 @@ export class FederatedWorker {
         console.debug(job);
       }
 
+      const { args, method, module } = state as unknown as AsyncCallState<T>;
+      if (!window[module]) {
+        throw new Error(`Module [${module}] does not exist`);
+      }
+
+      if (!window[module][method]) {
+        throw new Error(
+          `Method [${method}] does not exist in Module [${module}]`
+        );
+      }
+
+      let newArgs = Array.isArray(args) ? args : [args];
+
+      const result = {
+        method,
+        module,
+        result: window[module][method](...newArgs),
+      } as unknown as T;
+
+      res(cb ? cb(result) : result);
+    });
+  }
+
+  private runWorkerJob<T>(
+    jobType: JobTypes,
+    state: T,
+    cb?: (state: T) => ModuleReturn
+  ): Promise<T | ModuleReturn> {
+    return new Promise((res, rej) => {
+      this.checkWorker();
+      const id = v4UUID();
+      const job = {
+        type: jobType,
+        parentJob: id,
+        state,
+      };
+
+      if (this.debug) {
+        console.debug(job);
+      }
+
       const moduleError = (msg: ErrorEvent) => {
         // Cleaning up handlers
-        this.worker.removeEventListener("message", moduleFinished);
-        this.worker.removeEventListener("error", moduleError);
+        this.worker?.removeEventListener("message", moduleFinished);
+        this.worker?.removeEventListener("error", moduleError);
         rej(msg.error);
       };
 
@@ -150,25 +222,31 @@ export class FederatedWorker {
         // Only matching if the parentJob ID is equivaltent to one sent
         if (msg.data.parentJob === id) {
           // Cleaning up handlers
-          this.worker.removeEventListener("error", moduleError);
-          this.worker.removeEventListener("message", moduleFinished);
+          this.worker?.removeEventListener("error", moduleError);
+          this.worker?.removeEventListener("message", moduleFinished);
           res(cb ? cb(msg.data.state) : msg.data.state);
         }
       };
 
-      this.worker.addEventListener("message", moduleFinished);
+      this.worker?.addEventListener("message", moduleFinished);
 
-      this.worker.addEventListener("error", moduleError);
+      this.worker?.addEventListener("error", moduleError);
 
-      this.worker.postMessage(job);
+      this.worker?.postMessage(job);
     });
   }
 
   private routeMethod<T>(type: JobTypes, state: T, wait?: boolean) {
     if (wait) {
-      return this.runWorkerJob(type, state);
+      return this.useClient
+        ? this.runClientJob<T>(type, state)
+        : this.runWorkerJob<T>(type, state);
+    }
+
+    if (this.useClient) {
+      this.runClientJob<T>(type, state);
     } else {
-      this.worker.postMessage({
+      this.worker?.postMessage({
         type,
         state,
       });
@@ -186,11 +264,37 @@ export class FederatedWorker {
       );
     }
 
-    return this.runWorkerJob(
-      "IMPORT_MODULE",
-      importModuleState,
-      (state) => `${state.scope}\\${state.module}`
-    );
+    if (this.useClient) {
+      if (this.debug) {
+        console.debug("Getting ", importModuleState.module);
+      }
+      return new Promise<ModuleReturn>((res, rej) => {
+        const { module, scope, url } = importModuleState;
+        const newModule = document.createElement("script");
+        newModule.async = true;
+        newModule.src = url;
+
+        newModule.addEventListener("load", () => {
+          window[scope].get(module).then((retrievedModule) => {
+            window[module] = retrievedModule();
+            document.head.removeChild(newModule);
+            res({
+              state: importModuleState,
+              done: true,
+            });
+          });
+        });
+
+        document.head.append(newModule);
+      });
+    } else {
+      this.checkWorker();
+      return this.runWorkerJob(
+        "IMPORT_MODULE",
+        importModuleState,
+        (state) => `${state.scope}\\${state.module}`
+      );
+    }
   }
 
   runMethod<A = unknown, T = unknown>(
