@@ -27,8 +27,8 @@ function v4UUID() {
 }
 
 export class FederatedWorker {
-  public debug: boolean;
-  public useClient: boolean;
+  public debug?: boolean;
+  public useClient?: boolean;
   public worker?: Worker;
   private clientMethods?: WorkerEventHandlers;
 
