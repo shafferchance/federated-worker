@@ -97,6 +97,12 @@ export interface WorkerEventHandlers {
   onMethodResult: (...args: any[]) => void;
 }
 
+export interface FederatedWorkerOptions {
+  clientMethods?: WorkerEventHandlers;
+  debug?: boolean;
+  useClient?: boolean;
+}
+
 export type ModuleReturn =
   | string
   | number
