@@ -6,7 +6,7 @@
 
 ## Why?
 
-      This package is for those who want to move their federated modules to execute off of the main theread. This was required to be flexible enough that it could load in any package. It was designed to work with federated modules, however, it will most likely work with any webpack build package (this is untested).
+This package is for those who want to move their federated modules to execute off of the main theread. This was required to be flexible enough that it could load in any package. It was designed to work with federated modules, however, it will most likely work with any webpack build package (this is untested).
 
 ## Examples
 
@@ -35,6 +35,18 @@ async function exampleWorker () {
 
   return result
 }
+```
+
+## Constructor Options
+
+There is now a method to fallback to the client to run your federated modules with the added benefit that modules will not have to be redownloaded again no matter where they are imported.
+
+```typescript
+const worker = new FederatedWorker({
+  debug: boolean,
+  useClient: boolean,
+  clientMethods: WorkerEventHandlers, // Hooks into Worker Lifecycles ([NOT been tested!]
+});
 ```
 
 ## Theorectical Uses
