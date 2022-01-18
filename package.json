@@ -1,6 +1,6 @@
 {
   "name": "federated-worker",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "author": "Chanceler Shaffer",
   "description": "Class to abstract instantiation of web worker that can load federated modules or any remote script",
   "repository": {
@@ -17,6 +17,7 @@
     "worker-loader": "^3.0.8"
   },
   "browser": "./dist/federated-worker.js",
+  "main": "./dist/federated-worker.js",
   "types": "./dist/index.d.ts",
   "scripts": {
     "dev": "webpack-dev-server --config webpack.dev.js",
