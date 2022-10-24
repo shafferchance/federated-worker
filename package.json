@@ -16,15 +16,20 @@
     "webpack-dev-server": "^4.6.0",
     "worker-loader": "^3.0.8"
   },
-  "browser": "./dist/federated-worker.js",
-  "main": "./dist/federated-worker.js",
-  "types": "./dist/index.d.ts",
+  "browser": "./dist/umd/federated-worker.js",
+  "main": "./dist/umd/federated-worker.js",
+  "types": "./dist/umd/index.d.ts",
   "scripts": {
     "dev": "webpack-dev-server --config webpack.dev.js",
     "build": "yarn build:prod",
-    "build:dev": "webpack --config webpack.dev.js",
-    "build:prod": "webpack --config webpack.prod.js",
+    "build:dev": "rm -rf dist federated && webpack --config webpack.dev.js",
+    "build:prod": "rm -rf dist federated && webpack --config webpack.prod.js",
+    "build:prod:watch": "rm -rf dist && webpack --mode production --watch --config webpack.prod.js",
     "pack": "yarn build:prod; npm pack",
-    "publish": "yarn build:prod"
+    "publish": "yarn build:prod",
+    "federated-serve": "serve --cors=true dist -p 9001"
+  },
+  "dependencies": {
+    "inline-worker-loader": "^0.0.1"
   }
 }

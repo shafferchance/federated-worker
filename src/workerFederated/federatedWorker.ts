@@ -10,11 +10,10 @@ import {
   WorkerCallState,
 } from "./types";
 
-import FederatedModuleWorker from "./remoteFederated.worker.ts";
 import { FederatedWorkerOptions } from ".";
 
 const urlRegex = /blob:(.+)/;
-
+// why do we have this function more than once
 function v4UUID() {
   // https://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid
   // @ts-ignore: I know how strange this looks but it works
@@ -30,6 +29,7 @@ export class FederatedWorker {
   public debug?: boolean;
   public useClient?: boolean;
   public worker?: Worker;
+  private pendingWorker?: Promise<boolean>;
   private clientMethods?: WorkerEventHandlers;
 
   constructor(options?: FederatedWorkerOptions) {
@@ -42,17 +42,38 @@ export class FederatedWorker {
     if (this.useClient) {
       this.initializeClientFederatedWorker();
     } else {
-      this.worker = new FederatedModuleWorker();
+      // new Worker(URL.createObjectURL(new Blob(["("+worker_function.toString()+")()"], {type: 'text/javascript'})));
+
+      this.getWorker();
+
+      // this.worker = new Worker(fetch("http://localhost:9001/remoteFederated.worker.js"));
       this.initializeFederatedWorker(this.clientMethods);
     }
   }
 
-  private initializeFederatedWorker(eventHandlers?: WorkerEventHandlers) {
+  getWorker() {
+    this.pendingWorker = fetch(
+      "http://localhost:9001/remoteFederated.worker.js"
+    )
+      .then((res) => {
+        return res.text();
+      })
+      .then((text) => {
+        this.worker = new Worker(
+          URL.createObjectURL(new Blob([text], { type: "text/javascript" }))
+        );
+        return true;
+      });
+  }
+
+  private async initializeFederatedWorker(eventHandlers?: WorkerEventHandlers) {
     if (!this.worker) {
       throw new Error(
         "[WORKER]: Trying to initialize Worker that does not exist"
       );
     }
+
+    await this.pendingWorker;
     this.worker.addEventListener(
       "message",
       (event: MessageEvent<Job<ImportScriptState>>) => {
@@ -70,6 +91,8 @@ export class FederatedWorker {
           const { id, parentJob, state } = event.data;
           const { url, host } = state;
           const urlMatch = url.match(urlRegex);
+
+          // could be a tertiary operator
           let correctURL = url;
 
           // If this was rust it would look prettier :(
@@ -79,7 +102,7 @@ export class FederatedWorker {
 
           if (host) {
             const newHost = new URL(correctURL);
-            newHost.host = host; // There is a check above
+            newHost.host = host; // There is a check above√
             this.worker.postMessage({
               type: "IMPORT_SCRIPT_END",
               done: true,
@@ -140,12 +163,13 @@ export class FederatedWorker {
   }
 
   // This is for if the useClient flag is switched back
-  private checkWorker() {
+  private async checkWorker() {
     if (!this.worker) {
       if (this.debug) {
         console.debug("[WORKER]: Worker never spun up or closed by browser!");
       }
-      this.worker = new FederatedModuleWorker();
+      this.getWorker();
+      await this.pendingWorker;
       this.initializeFederatedWorker(this.clientMethods);
     }
   }
@@ -168,15 +192,15 @@ export class FederatedWorker {
       }
 
       const { args, method, module } = state as unknown as AsyncCallState<T>;
-      if (!window[module]) {
-        throw new Error(`Module [${module}] does not exist`);
-      }
+      // if (!window[module]) {
+      //   throw new Error(`Module [${module}] does not exist`);
+      // }
 
-      if (!window[module][method]) {
-        throw new Error(
-          `Method [${method}] does not exist in Module [${module}]`
-        );
-      }
+      // if (!window[module][method]) {
+      //   throw new Error(
+      //     `Method [${method}] does not exist in Module [${module}]`
+      //   );
+      // }
 
       let newArgs = Array.isArray(args) ? args : [args];
 
@@ -210,6 +234,7 @@ export class FederatedWorker {
 
       const moduleError = (msg: ErrorEvent) => {
         // Cleaning up handlers
+        // message too generic a name
         this.worker?.removeEventListener("message", moduleFinished);
         this.worker?.removeEventListener("error", moduleError);
         rej(msg.error);
@@ -231,7 +256,6 @@ export class FederatedWorker {
       this.worker?.addEventListener("message", moduleFinished);
 
       this.worker?.addEventListener("error", moduleError);
-
       this.worker?.postMessage(job);
     });
   }
@@ -292,7 +316,9 @@ export class FederatedWorker {
       return this.runWorkerJob(
         "IMPORT_MODULE",
         importModuleState,
-        (state) => `${state.scope}\\${state.module}`
+        (state) =>
+          (console.log(`${state.scope}\\${state.module}`) as any) ||
+          `${state.scope}\\${state.module}`
       );
     }
   }

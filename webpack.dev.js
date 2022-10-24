@@ -1,7 +1,7 @@
 const Base = require("./webpack.base");
 
-module.exports = {
-  ...Base,
+module.exports = Base.map((config) => ({
+  ...config,
   mode: "development",
   devServer: {
     port: 3000,
@@ -10,4 +10,4 @@ module.exports = {
       "Access-Control-Allow-Origin": "*",
     },
   },
-};
+}));
