@@ -59,6 +59,7 @@ export class FederatedWorker {
         return res.text();
       })
       .then((text) => {
+        console.log(text);
         this.worker = new Worker(
           URL.createObjectURL(new Blob([text], { type: "text/javascript" }))
         );
@@ -74,6 +75,7 @@ export class FederatedWorker {
     }
 
     await this.pendingWorker;
+    console.log("loading events onto worker");
     this.worker.addEventListener(
       "message",
       (event: MessageEvent<Job<ImportScriptState>>) => {
@@ -81,20 +83,22 @@ export class FederatedWorker {
         // Please see: https://stackoverflow.com/questions/21913673/execute-web-worker-from-different-origin
         if (event.data.type === "IMPORT_SCRIPT_START") {
           if (this.debug) {
-            console.debug(event);
+            console.debug("event", event);
           }
 
           if (!this.worker) {
-            throw new Error("How did this message get here?");
+            throw new Error("How did we get here without a loaded worker?");
           }
 
           const { id, parentJob, state } = event.data;
           const { url, host } = state;
+          console.log(state);
           const urlMatch = url.match(urlRegex);
 
           // could be a tertiary operator
           let correctURL = url;
 
+          console.log('url', url,urlMatch );
           // If this was rust it would look prettier :(
           if (urlMatch?.[1]) {
             correctURL = urlMatch[1];
@@ -188,7 +192,7 @@ export class FederatedWorker {
       };
 
       if (this.debug) {
-        console.debug(job);
+        console.debug("job", job);
       }
 
       const { args, method, module } = state as unknown as AsyncCallState<T>;
@@ -219,8 +223,9 @@ export class FederatedWorker {
     state: T,
     cb?: (state: T) => ModuleReturn
   ): Promise<T | ModuleReturn> {
-    return new Promise((res, rej) => {
+    return new Promise(async (res, rej) => {
       this.checkWorker();
+      await this.pendingWorker;
       const id = v4UUID();
       const job = {
         type: jobType,
@@ -229,12 +234,13 @@ export class FederatedWorker {
       };
 
       if (this.debug) {
-        console.debug(job);
+        console.debug('jobs', job);
       }
 
       const moduleError = (msg: ErrorEvent) => {
         // Cleaning up handlers
         // message too generic a name
+        console.log("error");
         this.worker?.removeEventListener("message", moduleFinished);
         this.worker?.removeEventListener("error", moduleError);
         rej(msg.error);
@@ -242,10 +248,14 @@ export class FederatedWorker {
 
       const moduleFinished = (msg: MessageEvent<Job<T>>) => {
         if (this.debug) {
+          console.log("module finished");
           console.debug(msg);
         }
+
+        console.log("id and msg", id, msg.data.parentJob);
         // Only matching if the parentJob ID is equivaltent to one sent
         if (msg.data.parentJob === id) {
+          console.log("get's to shared id");
           // Cleaning up handlers
           this.worker?.removeEventListener("error", moduleError);
           this.worker?.removeEventListener("message", moduleFinished);
@@ -256,6 +266,7 @@ export class FederatedWorker {
       this.worker?.addEventListener("message", moduleFinished);
 
       this.worker?.addEventListener("error", moduleError);
+      console.log(this.worker, "test");
       this.worker?.postMessage(job);
     });
   }
@@ -288,6 +299,8 @@ export class FederatedWorker {
       );
     }
 
+    console.log('importedModule', importModuleState);
+
     if (this.useClient) {
       if (this.debug) {
         console.debug("Getting ", importModuleState.module);
@@ -301,6 +314,7 @@ export class FederatedWorker {
         newModule.addEventListener("load", () => {
           window[scope].get(module).then((retrievedModule) => {
             window[module] = retrievedModule();
+            console.log("load event", window[module]);
             document.head.removeChild(newModule);
             res({
               state: importModuleState,
@@ -332,7 +346,7 @@ export class FederatedWorker {
     const isAsync = async || wait;
 
     if (this.debug) {
-      console.log(methodState);
+      console.log("methodState", methodState);
     }
 
     return this.routeMethod(

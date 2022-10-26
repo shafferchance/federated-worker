@@ -160,7 +160,9 @@ const handlers: WorkerJobHandlers = {
 
     self.host = parsedURL.host;
 
+    console.log('IMPORT_MODULE', url);
     importScripts(url);
+    console.log("import script succeded");
     self[scope].get
       .bind(self)(module)
       .then((remoteModule) => {
@@ -176,6 +178,7 @@ const handlers: WorkerJobHandlers = {
       });
   },
   IMPORT_SCRIPT_START: (job) => {
+    console.log('IMPORT_SCRIPT_START', job);
     postMessage(job);
   },
   IMPORT_SCRIPT_END: (job) => {
